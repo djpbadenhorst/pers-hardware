@@ -1,73 +1,95 @@
 # README
 
-## INSTALL:
-Rasbian64bit
-WifiZone=GB
+## BOOTING
+Turn Boot Switch On
+```
+git clone --depth=1 https://github.com/raspberrypi/usbboot
+cd usbboot
+make
+sudo ./rpiboot
+rpi-imager
+```
+Install Rasbian (64bit) [Set WifiZone=GB]
+Turn Boot Switch Off
 
-sudo raspi-config (set network-manager)
-
-create network:
-* pppoe
--- wijnlanden_6@crispfibre
--- Weblock123
--- Connect automatically
--- DNS: 8.8.8.8
-* ethernet
--- device: eth1
--- method: shared to other
-
-
+## UPDATE
+Update raspberry pi firmware:
+```
 sudo apt update
-sudo apt upgrade
+sudo apt upgrade -y
 sudo apt full-upgrade
 sudo rpi-update
+```
 
+## LASTPASS
+Install lastpass cli:
+```
+sudo apt install lastpass-cli
+eval $(lpass show --notes pers/router/env)
+```
 
+## NETWORKING
+Enable NetworkManager:
+```
+sudo raspi-config 
+```
+Advanced Options > Network Config > NetworkManager
 
-########################### 
-# POTENTIAL DISPATCH FILE #
-###########################
-
+```
+nmcli connection delete Wired\ connection\ 1
+nmcli connection delete Wired\ connection\ 2
+nmcli connection add type pppoe ifname ppp0 con-name dsl parent eth0 username wijnlanden_6@crispfibre password $PPP_PASSWORD
+nmcli connection add type ethernet ifname eth1 con-name ethernet autoconnect yes ipv4.method shared ipv6.method shared
+cat << EOF | tee -a /etc/NetworkManager/dispatcher.d/pre-up.d/iptables > /dev/null
 #!/bin/sh
-#
-# /etc/NetworkManager/dispatcher.d/05-batman
-
-ESSID="Igloo mesh"
-IFACE="wlp2s0"
-ADDR="01:23:45:67:89:AB"
-
-function current {
-    nmcli -t -f GENERAL.CONNECTION d show $IFACE | cut -d\: -f2
-}
-
-interface=$1
-status=$2
-
-if [ ! "$interface" == $IFACE ]; then
-  exit 0
+LOGFILE=/var/log/iptables.log
+if [ $1 = ppp0 ] && [ $2 = pre-up]; then
+    echo "$0: clamp mss to pmtu" >> $LOGFILE
+	/sbin/iptables -t mangle -o ppp0 -I FORWARD 1 -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 fi
+exit 0
+EOF
+chmod a+x /etc/NetworkManager/dispatcher.d/pre-up.d/iptables
+```
 
-case $status in
-  up)
-    if [ "$(current)" == "$ESSID" ]; then
-      ip link set dev $IFACE mtu 1560 # 1500+60
-      modprobe batman-adv
-      batctl if add $IFACE
-      batctl gw_mode client
-      # Keep the same MAC address (optional)
-      ip link set dev bat0 address $ADDR
-      ip link set dev bat0 up
-      #sleep 10
-      # DHCP (optional)
-      dhclient -r
-      dhclient -H $(hostname) bat0
-    fi
-    ;;
-  down)
-    if [ ! "$(current)" == "$ESSID" ]; then
-      dhclient -r
-      ip link set dev bat0 down
-      batctl if del $IFACE
-    fi
-    ;;
-esac
+## TAILSCALE
+Install tailscale:
+```
+curl -fsSL https://tailscale.com/install.sh | sh
+echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
+sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
+sudo tailscale up --advertise-routes=10.0.0.0/16 --hostname=router --auth-key=$TAILSCALE_AUTHKEY
+```
+Activate Routes in www.tailscale.com
+
+## SHELLINABOX
+Install shellinabox:
+```
+sudo apt install -y openssh-server shellinabox
+```
+
+## VINO
+Install Vino server:
+```
+sudo apt install -y vino
+gsettings set org.gnome.Vino prompt-enabled false
+gsettings set org.gnome.Vino authentication-methods "['vnc']"
+gsettings set org.gnome.Vino vnc-password "$(echo -n "$VINO_PASSWORD" | base64)"
+
+mkdir /home/djpb/.config/autostart
+cat << EOF | tee -a /home/djpb/.config/autostart/vino.desktop > /dev/null
+[Desktop Entry]
+Type=Application
+Name=Vino
+Exec=/usr/bin/bash -c "sleep 5 && /usr/lib/vino/vino-server"
+EOF
+```
+
+## DOCKER
+Install docker:
+```
+sudo apt install -y docker.io docker-compose
+sudo usermod -aG docker $USER
+reboot
+```
