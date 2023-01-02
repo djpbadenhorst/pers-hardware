@@ -28,7 +28,22 @@ StartupNotify=false
 Terminal=false
 Hidden=false
 ```
+# SPOTIFY
+https://github.com/ldsz/plugin.audio.spotify/releases/tag/1.2.3
+# NETFLIX
+https://castagnait.github.io/repository.castagnait/repository.castagnait-2.0.0.zip
+sudo apt install kodi-inputstream-adaptive 
+# HULU
+https://slyguy.uk/repository.slyguy.zip
 
 
 
 #filemanager
+
+
+
+pactl list short sinks
+pactl set-default-sink 'alsa_output.pci-0000_0a_00.1.hdmi-stereo-extra1'
+
+
+wget https://raw.githubusercontent.com/djpbadenhorst/install/main/docker.sh
