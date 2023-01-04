@@ -2,6 +2,7 @@
 
 ## BOOTING
 Turn Boot Switch On
+
 ```
 git clone --depth=1 https://github.com/raspberrypi/usbboot
 cd usbboot
@@ -9,11 +10,13 @@ make
 sudo ./rpiboot
 rpi-imager
 ```
+
 Install Rasbian (64bit) [Set WifiZone=GB]
 Turn Boot Switch Off
 
 ## UPDATE
 Update raspberry pi firmware:
+
 ```
 sudo apt update
 sudo apt upgrade -y
@@ -21,18 +24,13 @@ sudo apt full-upgrade
 sudo rpi-update
 ```
 
-## LASTPASS
-Install lastpass cli:
-```
-sudo apt install lastpass-cli
-eval $(lpass show --notes pers/router/env)
-```
-
 ## NETWORKING
 Enable NetworkManager:
+
 ```
 sudo raspi-config 
 ```
+
 Advanced Options > Network Config > NetworkManager
 
 ```
@@ -52,44 +50,47 @@ EOF
 chmod a+x /etc/NetworkManager/dispatcher.d/pre-up.d/iptables
 ```
 
+## INSTALL LPASS & GH
+Install lastpass and gh for install scripts:
+
+```
+sudo apt install -y lastpass-cli
+export LPASS_DISABLE_PINENTRY=1
+echo <PASSWORD> | lpass login djpbadenhorst@gmail.com
+eval $(lpass show --notes pers/github/token)
+eval $(lpass show --notes script/bootstrap)
+```
+
 ## TAILSCALE
 Install tailscale:
+
 ```
 curl -fsSL https://tailscale.com/install.sh | sh
 echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
-sudo tailscale up --advertise-routes=10.0.0.0/16 --hostname=router --auth-key=$TAILSCALE_AUTHKEY
+sudo tailscale up --advertise-routes=10.42.0.0/16 --hostname=router --auth-key=$TAILSCALE_AUTHKEY
 ```
-Activate Routes in www.tailscale.com
 
-## SHELLINABOX
-Install shellinabox:
-```
-sudo apt install -y openssh-server shellinabox
-```
+Activate Routes in www.tailscale.com
 
 ## VINO
 Install Vino server:
-```
-sudo apt install -y vino
-gsettings set org.gnome.Vino prompt-enabled false
-gsettings set org.gnome.Vino authentication-methods "['vnc']"
-gsettings set org.gnome.Vino vnc-password "$(echo -n "$VINO_PASSWORD" | base64)"
 
-mkdir /home/djpb/.config/autostart
-cat << EOF | tee -a /home/djpb/.config/autostart/vino.desktop > /dev/null
-[Desktop Entry]
-Type=Application
-Name=Vino
-Exec=/usr/bin/bash -c "sleep 5 && /usr/lib/vino/vino-server"
-EOF
+```
+gh gist-view ./install-vino | sh
+```
+
+## SHELLINABOX
+Install shellinabox:
+
+```
+sudo apt install -y shellinabox
 ```
 
 ## DOCKER
 Install docker:
+
 ```
-sudo apt install -y docker.io docker-compose
-sudo usermod -aG docker $USER
-reboot
+gh gist-view ./install-docker | sh
 ```
